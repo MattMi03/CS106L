@@ -1,17 +1,16 @@
 #pragma once
 
 #include "byte_stream.hh"
-#include <queue>
+
+#include <list>
+#include <string>
+#include <tuple>
 
 class Reassembler
 {
 public:
   // Construct Reassembler to write into given ByteStream.
-  explicit Reassembler( ByteStream&& output ) : output_( std::move( output ) )
-  {
-    data_wait_.resize( output.writer().available_capacity() );
-    data_index_.resize( output.writer().available_capacity() );
-  }
+  explicit Reassembler( ByteStream&& output ) : output_( std::move( output ) ) {}
 
   /*
    * Insert a new substring to be reassembled into a ByteStream.
@@ -46,12 +45,12 @@ public:
   const Writer& writer() const { return output_.writer(); }
 
 private:
+  void push_bytes( uint64_t first_index, std::string data, bool is_last_substring );
+  void cache_bytes( uint64_t first_index, std::string data, bool is_last_substring );
+  void flush_buffer(); // 刷新缓冲区，把能推入的数据推入流中
+
+  std::list<std::tuple<uint64_t, std::string, bool>> unordered_bytes_ {}; // 一个有序的、无重复的缓冲区
+  uint64_t num_bytes_pending_ {};                                         // 当前存储的字节数
+  uint64_t expecting_index_ {};                                           // 表示期待下一个字节的序号
   ByteStream output_; // the Reassembler writes to this ByteStream
-  uint64_t first_unassembled_index_ {};
-  std::deque<char> data_wait_ {};
-  std::deque<bool> data_index_ {};
-  uint64_t end_unassembled_index_ {};
-  bool is_end_ {};
-  uint64_t bytes_pending_ {};
-  uint64_t bytes_num_ = -1;
 };
